@@ -1,0 +1,123 @@
+/* General app background and font */
+.root {
+    -fx-font-family: "Segoe UI", Arial, sans-serif;
+    -fx-background-color: #f6f8fa;
+}
+
+/* Tab styling */
+.tab-pane {
+    -fx-background-color: #f6f8fa;
+}
+.tab {
+    -fx-background-insets: 0 0 0 0;
+}
+.tab-label {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2d3748;
+}
+
+/* Form styling */
+.label {
+    -fx-font-size: 14px;
+    -fx-text-fill: #2d3748;
+}
+.text-field, .date-picker {
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+    -fx-border-color: #cbd5e1;
+    -fx-background-color: #fff;
+    -fx-padding: 6 10 6 10;
+    -fx-font-size: 14px;
+}
+.button {
+    -fx-background-color: #2563eb;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 6;
+    -fx-padding: 8 18 8 18;
+    -fx-font-size: 14px;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian,rgba(37,99,235,0.15),2,0,0,1);
+}
+.button:hover {
+    -fx-background-color: #1d4ed8;
+}
+
+/* Table styling */
+.table-view {
+    -fx-background-color: #fff;
+    -fx-border-color: #cbd5e1;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-table-cell-border-color: #e5e7eb;
+    -fx-padding: 16;
+}
+.table-view .column-header-background {
+    -fx-background-color: #2563eb;
+    -fx-background-radius: 6 6 0 0;
+}
+.table-view .column-header, .table-view .filler {
+    -fx-size: 32px;
+    -fx-border-width: 0 0 1 0;
+    -fx-border-color: transparent transparent #e5e7eb transparent;
+}
+.table-view .column-header .label {
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+.table-row-cell:filled:selected, .table-cell:filled:selected {
+    -fx-background-color: #dbeafe;
+}
+.table-row-cell:hover {
+    -fx-background-color: #e0e7ff;
+}
+
+/* Chart styling */
+.chart {
+    -fx-background-color: #fff;
+    -fx-padding: 16;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-border-color: #cbd5e1;
+    -fx-effect: dropshadow(gaussian, #2563eb33, 8, 0.2, 0, 2);
+}
+.chart-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2563eb;
+}
+.axis-label {
+    -fx-font-size: 13px;
+    -fx-text-fill: #2d3748;
+}
+.axis-tick-mark {
+    -fx-font-size: 12px;
+    -fx-text-fill: #64748b;
+}
+
+/* Alert dialog styling */
+.dialog-pane {
+    -fx-background-color: #fff;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+.dialog-pane .header-panel .label {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2563eb;
+}
+.dialog-pane .content.label {
+    -fx-font-size: 14px;
+    -fx-text-fill: #2d3748;
+}
+.dialog-pane .button {
+    -fx-background-color: #2563eb;
+    -fx-text-fill: white;
+    -fx-background-radius: 6;
+    -fx-font-weight: bold;
+}
+.dialog-pane .button:hover {
+    -fx-background-color: #1d4ed8;
+}
