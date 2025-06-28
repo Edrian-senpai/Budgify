@@ -33,10 +33,48 @@
 }
 
 /* Top panel */
+/* Top panel styles */
 .top-panel {
     -fx-background-color: white;
-    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.1), 4, 0, 0, 0);
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 0, 4, 0, 0);
+    -fx-spacing: 20;
+    -fx-alignment: center-left;
 }
+
+/* Search field */
+.search-field {
+    -fx-background-color: #f8f9fa;
+    -fx-background-radius: 5;
+    -fx-border-radius: 5;
+    -fx-border-color: #ddd;
+    -fx-border-width: 1;
+    -fx-padding: 8;
+    -fx-pref-width: 250;
+}
+
+.search-field:hover {
+    -fx-border-color: #3498db;
+}
+
+/* Filter controls container */
+.filter-container {
+    -fx-spacing: 10;
+    -fx-alignment: center-left;
+}
+
+/* Filter labels */
+.filter-label {
+    -fx-font-weight: bold;
+    -fx-text-fill: #34495e;
+    -fx-padding: 0 5 0 0;
+}
+
+/* Adjust dashboard cards spacing */
+.dashboard-cards {
+    -fx-spacing: 15;
+    -fx-alignment: center;
+}
+
 
 /* Form styles */
 .form-panel {

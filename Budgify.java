@@ -10,6 +10,7 @@ import javafx.scene.control.cell.*;
 import javafx.scene.image.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.*;
+import javafx.scene.shape.Circle;
 import javafx.stage.*;
 import javafx.util.*;
 import java.io.*;
@@ -173,32 +174,91 @@ public class Budgify extends Application {
         return btn;
     }
     
-    private HBox createTopPanel() {
-        HBox topPanel = new HBox(20);
-        topPanel.setPadding(new Insets(15));
-        topPanel.getStyleClass().add("top-panel");
-        
-        // Search bar
-        searchField = new TextField();
-        searchField.setPromptText("Search transactions...");
-        searchField.setPrefWidth(300);
-        searchField.textProperty().addListener((obs, oldVal, newVal) -> {
-            filteredExpenses.setAll(expenses.stream()
-                .filter(e -> e.getDescription().toLowerCase().contains(newVal.toLowerCase()) ||
-                             e.getCategory().toLowerCase().contains(newVal.toLowerCase()) ||
-                             e.getTags().toLowerCase().contains(newVal.toLowerCase()))
-                .collect(Collectors.toList()));
-            updateDashboard();
-            updateCharts();
-        });
-        
-        // Dashboard cards
-        HBox dashboardCards = createDashboard();
-        
-        topPanel.getChildren().addAll(searchField, dashboardCards);
-        topPanel.setAlignment(Pos.CENTER_LEFT);
-        return topPanel;
-    }
+   private HBox createTopPanel() {
+    HBox topPanel = new HBox(20);
+    topPanel.setPadding(new Insets(15));
+    topPanel.getStyleClass().add("top-panel");
+    
+    // Create a container for search and filter controls
+    HBox controlsContainer = new HBox(15);
+    controlsContainer.setAlignment(Pos.CENTER_LEFT);
+    
+    // Search bar
+    searchField = new TextField();
+    searchField.setPromptText("Search transactions...");
+    searchField.setPrefWidth(250);
+    searchField.getStyleClass().add("search-field");
+    searchField.textProperty().addListener((obs, oldVal, newVal) -> {
+        filteredExpenses.setAll(expenses.stream()
+            .filter(e -> e.getDescription().toLowerCase().contains(newVal.toLowerCase()) ||
+                         e.getCategory().toLowerCase().contains(newVal.toLowerCase()) ||
+                         e.getTags().toLowerCase().contains(newVal.toLowerCase()))
+            .collect(Collectors.toList()));
+        updateDashboard();
+        updateCharts();
+    });
+    
+    // Filter controls
+    ComboBox<String> filterCategory = new ComboBox<>(FXCollections.observableArrayList(CATEGORIES));
+    filterCategory.getItems().add(0, "All Categories");
+    filterCategory.setValue("All Categories");
+    filterCategory.setPromptText("Filter by category");
+    filterCategory.getStyleClass().add("filter-control");
+    filterCategory.setPrefWidth(180);
+    
+    DatePicker fromDate = new DatePicker(LocalDate.now().minusMonths(1));
+    fromDate.getStyleClass().add("filter-control");
+    fromDate.setPrefWidth(120);
+    
+    DatePicker toDate = new DatePicker(LocalDate.now());
+    toDate.getStyleClass().add("filter-control");
+    toDate.setPrefWidth(120);
+    
+    Button filterButton = new Button("Apply Filters");
+    filterButton.getStyleClass().add("filter-button");
+    filterButton.setOnAction(e -> applyFilters(
+        filterCategory.getValue(),
+        fromDate.getValue(),
+        toDate.getValue()
+    ));
+    
+    // Add search and filter controls to container
+    controlsContainer.getChildren().addAll(
+        new Label("Search:"), searchField,
+        new Label("Category:"), filterCategory,
+        new Label("From:"), fromDate,
+        new Label("To:"), toDate,
+        filterButton
+    );
+    
+    // Dashboard cards
+    HBox dashboardCards = createDashboardCards();
+    
+    topPanel.getChildren().addAll(controlsContainer, dashboardCards);
+    topPanel.setAlignment(Pos.CENTER_LEFT);
+    return topPanel;
+}
+
+private HBox createDashboardCards() {
+    // Balance card
+    balanceLabel = new Label("$0.00");
+    balanceLabel.getStyleClass().add("balance-label");
+    VBox balanceCard = createDashboardCard("Total Balance", balanceLabel, "balance-card");
+    
+    // Income card
+    incomeLabel = new Label("$0.00");
+    incomeLabel.getStyleClass().add("income-label");
+    VBox incomeCard = createDashboardCard("Income", incomeLabel, "income-card");
+    
+    // Expense card
+    expenseLabel = new Label("$0.00");
+    expenseLabel.getStyleClass().add("expense-label");
+    VBox expenseCard = createDashboardCard("Expenses", expenseLabel, "expense-card");
+    
+    HBox cardsBox = new HBox(15, balanceCard, incomeCard, expenseCard);
+    cardsBox.setAlignment(Pos.CENTER);
+    return cardsBox;
+}
 
     private VBox createInputForm() {
         VBox form = new VBox(15);
