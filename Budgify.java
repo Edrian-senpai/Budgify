@@ -1,56 +1,65 @@
-// Budgify.java - Enhanced JavaFX Expense Tracker (Java 17+)
-import javafx.animation.FadeTransition;
+import javafx.animation.*;
 import javafx.application.Application;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.geometry.Insets;
-import javafx.scene.Scene;
-import javafx.scene.control.*;
-import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.layout.*;
-import javafx.stage.Stage;
+import javafx.collections.*;
+import javafx.geometry.*;
+import javafx.scene.*;
+import javafx.scene.Node;
 import javafx.scene.chart.*;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TextField;
-import javafx.scene.control.Button;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.DatePicker;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.util.stream.Collectors;
-import java.io.FileWriter;
-import java.io.FileReader;
-import java.time.LocalDate;
-import javafx.scene.image.ImageView;
-import javafx.geometry.Pos;
+import javafx.scene.control.*;
+import javafx.scene.control.cell.*;
+import javafx.scene.image.*;
+import javafx.scene.layout.*;
+import javafx.scene.paint.*;
+import javafx.stage.*;
+import javafx.util.*;
+import java.io.*;
+import java.time.*;
+import java.time.format.*;
+import java.util.*;
+import java.util.stream.*;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.util.Duration;
+
 
 public class Budgify extends Application {
 
-    private TextField typeField, amountField;
-    private DatePicker datePicker;
-    private TableView<Expense> expenseTable;
-    private final String CSV_FILE = "expenses.csv";
-    private ObservableList<Expense> expenses = FXCollections.observableArrayList();
+    // Constants
+    private static final String CSV_FILE = "expenses.csv";
+    private static final String[] CATEGORIES = {
+        "Housing", "Food", "Transportation", "Utilities", 
+        "Healthcare", "Entertainment", "Education", "Savings", 
+        "Investments", "Debt", "Other"
+    };
+    private static final String[] PAYMENT_METHODS = {
+        "Cash", "Credit Card", "Debit Card", "Bank Transfer", 
+        "Digital Wallet", "Cryptocurrency", "Other"
+    };
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMM dd, yyyy");
 
-    // Add these as fields:
-    private TabPane mainTabPane;
-    private Tab categoryTab;
-    private Tab monthlyTab;
-    private ComboBox<String> categoryBox;
+    // UI Components
+    private TextField amountField, descriptionField, tagsField;
+    private DatePicker datePicker;
+    private ComboBox<String> categoryBox, paymentBox;
+    private TableView<Expense> expenseTable;
+    private Label balanceLabel, incomeLabel, expenseLabel;
+    private PieChart categoryChart;
+    private BarChart<String, Number> monthlyChart;
+    private LineChart<String, Number> trendChart;
+    
+    // Data
+    private ObservableList<Expense> expenses = FXCollections.observableArrayList();
+    private ObservableList<Expense> filteredExpenses = FXCollections.observableArrayList();
 
     public static class Expense {
-        private LocalDate date;
-        private String category;
-        private double amount;
-        private String description;
-        private String paymentMethod;
-        private String tags;
+        private final LocalDate date;
+        private final String category;
+        private final double amount;
+        private final String description;
+        private final String paymentMethod;
+        private final String tags;
 
-        public Expense(LocalDate date, String category, double amount, String description, String paymentMethod, String tags) {
+        public Expense(LocalDate date, String category, double amount, 
+                      String description, String paymentMethod, String tags) {
             this.date = date;
             this.category = category;
             this.amount = amount;
@@ -59,230 +68,523 @@ public class Budgify extends Application {
             this.tags = tags;
         }
 
+        // Getters
         public LocalDate getDate() { return date; }
         public String getCategory() { return category; }
         public double getAmount() { return amount; }
         public String getDescription() { return description; }
         public String getPaymentMethod() { return paymentMethod; }
         public String getTags() { return tags; }
+        
+        // Formatted getters for display
+        public String getFormattedDate() { return date.format(DATE_FORMATTER); }
+        public String getFormattedAmount() { return String.format("$%.2f", amount); }
     }
 
     @Override
     public void start(Stage primaryStage) {
-        if (!showLoginDialog()) return;
-        primaryStage.setTitle("Budgify - Expense Tracker");
+        if (!showLoginDialog()) {
+            System.exit(0);
+        }
 
+        primaryStage.setTitle("Budgify - Personal Finance Manager");
+        primaryStage.getIcons().add(new Image("file:budgify-icon.png"));
+
+        // Initialize UI components
+        createInputForm();
+        createExpenseTable();
+        createDashboard();
+        createCharts();
+
+        // Load existing data
         loadExpenses();
+        updateDashboard();
+        updateCharts();
 
-        VBox inputForm = createInputForm();
-        expenseTable = createExpenseTable();
-        TabPane charts = createCharts();
+        // Main layout
+        BorderPane root = new BorderPane();
+        
+        // Top: Dashboard
+        root.setTop(createDashboard());
+        
+        // Center: Split between input/table and charts
+        SplitPane centerPane = new SplitPane();
+        VBox leftPane = new VBox(20, createInputForm(), expenseTable);
+        leftPane.setPadding(new Insets(15));
+        leftPane.setPrefWidth(500);
+        
+        TabPane chartTabs = createCharts();
+        chartTabs.setPrefWidth(600);
+        
+        centerPane.getItems().addAll(leftPane, chartTabs);
+        centerPane.setDividerPositions(0.45);
+        
+        root.setCenter(centerPane);
+        
+        // Bottom: Status bar
+        root.setBottom(createStatusBar());
 
-        VBox leftPane = new VBox(20, inputForm, expenseTable);
-        leftPane.setPadding(new Insets(10));
-        leftPane.setAlignment(Pos.TOP_CENTER);
-
-        SplitPane splitPane = new SplitPane();
-        splitPane.getItems().addAll(leftPane, charts);
-        splitPane.setDividerPositions(0.45);
-
-        Scene scene = new Scene(splitPane, 1000, 600);
+        // Scene setup
+        Scene scene = new Scene(root, 1200, 800);
         scene.getStylesheets().add(getClass().getResource("styles.css").toExternalForm());
-
+        
         primaryStage.setScene(scene);
         primaryStage.show();
     }
 
     private VBox createInputForm() {
-        VBox formBox = new VBox(15);
-        formBox.setPadding(new Insets(30));
-        formBox.setAlignment(Pos.TOP_CENTER);
-
-        HBox dateBox = new HBox(10, new Label("Date:"), datePicker = new DatePicker(LocalDate.now()));
-
-        categoryBox = new ComboBox<>();
-        categoryBox.getItems().addAll("Expenses", "Necessities", "Assets", "Income");
+        VBox form = new VBox(15);
+        form.setPadding(new Insets(20));
+        form.setStyle("-fx-background-color: #f8f9fa; -fx-border-radius: 10; -fx-background-radius: 10;");
+        
+        // Date
+        datePicker = new DatePicker(LocalDate.now());
+        datePicker.setPrefWidth(200);
+        
+        // Category
+        categoryBox = new ComboBox<>(FXCollections.observableArrayList(CATEGORIES));
         categoryBox.setPromptText("Select Category");
-        HBox categoryHBox = new HBox(10, new Label("Category:"), categoryBox);
-
-        HBox amountBox = new HBox(10, new Label("Amount:"), amountField = new TextField());
-
-        TextField descriptionField = new TextField();
-        descriptionField.setPromptText("Description");
-        HBox descriptionBox = new HBox(10, new Label("Description:"), descriptionField);
-
-        ComboBox<String> paymentBox = new ComboBox<>();
-        paymentBox.getItems().addAll("Cash", "Credit Card", "Bank Transfer", "Other");
+        categoryBox.setPrefWidth(200);
+        
+        // Amount
+        amountField = new TextField();
+        amountField.setPromptText("0.00");
+        amountField.setPrefWidth(200);
+        
+        // Description
+        descriptionField = new TextField();
+        descriptionField.setPromptText("Transaction description");
+        descriptionField.setPrefWidth(200);
+        
+        // Payment Method
+        paymentBox = new ComboBox<>(FXCollections.observableArrayList(PAYMENT_METHODS));
         paymentBox.setPromptText("Payment Method");
-        HBox paymentHBox = new HBox(10, new Label("Payment:"), paymentBox);
-
-        TextField tagsField = new TextField();
-        tagsField.setPromptText("Comma-separated tags");
-        HBox tagsBox = new HBox(10, new Label("Tags:"), tagsField);
-
-        Button addButton = new Button("Add Entry");
-        addButton.setOnAction(e -> saveExpense(
-            descriptionField.getText(),
-            paymentBox.getValue(),
-            tagsField.getText()
-        ));
-        Button deleteButton = new Button("Delete Selected");
-        deleteButton.setOnAction(e -> deleteSelected());
-        Button exportButton = new Button("Export CSV");
-        exportButton.setOnAction(e -> exportCSV());
-
-        HBox buttonBox = new HBox(15, addButton, deleteButton, exportButton);
+        paymentBox.setPrefWidth(200);
+        
+        // Tags
+        tagsField = new TextField();
+        tagsField.setPromptText("Tags (comma separated)");
+        tagsField.setPrefWidth(200);
+        
+        // Buttons
+        Button addButton = new Button("Add Transaction");
+        addButton.getStyleClass().add("primary-button");
+        addButton.setOnAction(e -> saveExpense());
+        
+        Button clearButton = new Button("Clear");
+        clearButton.setOnAction(e -> clearForm());
+        
+        HBox buttonBox = new HBox(10, addButton, clearButton);
         buttonBox.setAlignment(Pos.CENTER);
+        
+        // Form layout
+        form.getChildren().addAll(
+            createFormRow("Date:", datePicker),
+            createFormRow("Category:", categoryBox),
+            createFormRow("Amount:", amountField),
+            createFormRow("Description:", descriptionField),
+            createFormRow("Payment Method:", paymentBox),
+            createFormRow("Tags:", tagsField),
+            buttonBox
+        );
+        
+        return form;
+    }
 
-        formBox.getChildren().addAll(dateBox, categoryHBox, amountBox, descriptionBox, paymentHBox, tagsBox, buttonBox);
-        return formBox;
+    private HBox createFormRow(String labelText, Control control) {
+        Label label = new Label(labelText);
+        label.setMinWidth(100);
+        label.setStyle("-fx-font-weight: bold;");
+        return new HBox(10, label, control);
     }
 
     private TableView<Expense> createExpenseTable() {
-        TableView<Expense> table = new TableView<>();
-        table.setItems(expenses);
-
-        TableColumn<Expense, LocalDate> dateCol = new TableColumn<>("Date");
-        dateCol.setCellValueFactory(new PropertyValueFactory<>("date"));
-
+        expenseTable = new TableView<>();
+        expenseTable.setItems(filteredExpenses);
+        expenseTable.setPlaceholder(new Label("No transactions recorded yet"));
+        expenseTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        
+        // Date column
+        TableColumn<Expense, String> dateCol = new TableColumn<>("Date");
+        dateCol.setCellValueFactory(cell -> 
+            new SimpleStringProperty(cell.getValue().getFormattedDate()));
+        
+        // Category column
         TableColumn<Expense, String> categoryCol = new TableColumn<>("Category");
         categoryCol.setCellValueFactory(new PropertyValueFactory<>("category"));
-
-        TableColumn<Expense, Double> amountCol = new TableColumn<>("Amount");
-        amountCol.setCellValueFactory(new PropertyValueFactory<>("amount"));
-
+        
+        // Amount column with custom formatting
+        TableColumn<Expense, String> amountCol = new TableColumn<>("Amount");
+        amountCol.setCellValueFactory(cell -> 
+            new SimpleStringProperty(cell.getValue().getFormattedAmount()));
+        amountCol.setComparator((s1, s2) -> {
+            double d1 = Double.parseDouble(s1.replace("$", "").replace(",", ""));
+            double d2 = Double.parseDouble(s2.replace("$", "").replace(",", ""));
+            return Double.compare(d1, d2);
+        });
+        
+        // Description column
         TableColumn<Expense, String> descCol = new TableColumn<>("Description");
         descCol.setCellValueFactory(new PropertyValueFactory<>("description"));
-
+        
+        // Payment method column
         TableColumn<Expense, String> paymentCol = new TableColumn<>("Payment");
         paymentCol.setCellValueFactory(new PropertyValueFactory<>("paymentMethod"));
-
+        
+        // Tags column
         TableColumn<Expense, String> tagsCol = new TableColumn<>("Tags");
         tagsCol.setCellValueFactory(new PropertyValueFactory<>("tags"));
+        
+        expenseTable.getColumns().addAll(dateCol, categoryCol, amountCol, descCol, paymentCol, tagsCol);
+        
+        // Context menu for table
+        ContextMenu contextMenu = new ContextMenu();
+        MenuItem deleteItem = new MenuItem("Delete");
+        deleteItem.setOnAction(e -> deleteSelected());
+        MenuItem editItem = new MenuItem("Edit");
+        editItem.setOnAction(e -> editSelected());
+        contextMenu.getItems().addAll(editItem, deleteItem);
+        expenseTable.setContextMenu(contextMenu);
+        
+        return expenseTable;
+    }
 
-        table.getColumns().addAll(dateCol, categoryCol, amountCol, descCol, paymentCol, tagsCol);
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+    private HBox createDashboard() {
+    // Balance card
+    balanceLabel = new Label("$0.00");
+    balanceLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+    VBox balanceCard = createDashboardCard("Total Balance", balanceLabel, "#4CAF50");
+    
+    // Income card
+    incomeLabel = new Label("$0.00");
+    incomeLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+    VBox incomeCard = createDashboardCard("Income", incomeLabel, "#2196F3");
+    
+    // Expense card
+    expenseLabel = new Label("$0.00");
+    expenseLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+    VBox expenseCard = createDashboardCard("Expenses", expenseLabel, "#F44336");
+    
+    // Filter controls
+    ComboBox<String> filterCategory = new ComboBox<>(FXCollections.observableArrayList(CATEGORIES));
+    filterCategory.getItems().add(0, "All Categories");
+    filterCategory.setValue("All Categories");
+    filterCategory.setPromptText("Filter by category");
+    
+    DatePicker fromDate = new DatePicker(LocalDate.now().minusMonths(1));
+    DatePicker toDate = new DatePicker(LocalDate.now());
+    
+    Button filterButton = new Button("Apply Filters");
+    filterButton.setOnAction(e -> applyFilters(
+        filterCategory.getValue(),
+        fromDate.getValue(),
+        toDate.getValue()
+    ));
+    
+    HBox filterBox = new HBox(10, 
+        new Label("Category:"), filterCategory,
+        new Label("From:"), fromDate,
+        new Label("To:"), toDate,
+        filterButton
+    );
+    filterBox.setAlignment(Pos.CENTER_LEFT);
+    filterBox.setPadding(new Insets(10));
+    
+    // Dashboard layout - Changed to HBox to match return type
+    HBox statsBox = new HBox(20, balanceCard, incomeCard, expenseCard);
+    statsBox.setAlignment(Pos.CENTER);
+    
+    // Main dashboard container - Now an HBox containing both sections
+    HBox dashboard = new HBox(20, statsBox, filterBox);
+    dashboard.setPadding(new Insets(15));
+    dashboard.setStyle("-fx-background-color: #ffffff;");
+    
+    return dashboard;
+}
 
-        return table;
+
+
+    private VBox createDashboardCard(String title, Node content, String color) {
+        Label titleLabel = new Label(title);
+        titleLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
+        
+        VBox card = new VBox(5, titleLabel, content);
+        card.setAlignment(Pos.CENTER);
+        card.setPadding(new Insets(15));
+        card.setStyle(String.format(
+            "-fx-background-color: %s; -fx-background-radius: 10; -fx-padding: 15;",
+            color
+        ));
+        card.setMinWidth(150);
+        
+        return card;
     }
 
     private TabPane createCharts() {
         TabPane tabPane = new TabPane();
         
-        // Pie chart by category
-        PieChart categoryChart = new PieChart();
-        updatePieChart(categoryChart);
-        categoryTab = new Tab("By Category", categoryChart);
+        // Category Pie Chart
+        categoryChart = new PieChart();
+        categoryChart.setTitle("Expense by Category");
+        Tab categoryTab = new Tab("Categories", categoryChart);
         
-        // Bar chart by month
-        BarChart<String, Number> monthlyChart = new BarChart<>(new CategoryAxis(), new NumberAxis());
-        updateBarChart(monthlyChart);
-        monthlyTab = new Tab("Monthly Overview", monthlyChart);
-
-        tabPane.getTabs().addAll(categoryTab, monthlyTab);
+        // Monthly Bar Chart
+        CategoryAxis xAxis = new CategoryAxis();
+        NumberAxis yAxis = new NumberAxis();
+        monthlyChart = new BarChart<>(xAxis, yAxis);
+        monthlyChart.setTitle("Monthly Overview");
+        Tab monthlyTab = new Tab("Monthly", monthlyChart);
         
-        Tab imageTab = new Tab("Python Analysis");
-        VBox imageBox = new VBox(10);
-        imageBox.setPadding(new Insets(10));
-        imageBox.setAlignment(Pos.CENTER);
-        ImageView categoryImg = new ImageView("file:category_chart.png");
-        ImageView monthlyImg = new ImageView("file:monthly_chart.png");
-        categoryImg.setFitWidth(350); categoryImg.setPreserveRatio(true);
-        monthlyImg.setFitWidth(350); monthlyImg.setPreserveRatio(true);
-        imageBox.getChildren().addAll(new Label("Category Pie Chart:"), categoryImg, new Label("Monthly Bar Chart:"), monthlyImg);
-        imageTab.setContent(imageBox);
-        tabPane.getTabs().add(imageTab);
+        // Trend Line Chart
+        CategoryAxis trendXAxis = new CategoryAxis();
+        NumberAxis trendYAxis = new NumberAxis();
+        trendChart = new LineChart<>(trendXAxis, trendYAxis);
+        trendChart.setTitle("Spending Trend");
+        Tab trendTab = new Tab("Trend", trendChart);
         
+        // Reports Tab
+        VBox reportsBox = new VBox(20);
+        reportsBox.setPadding(new Insets(15));
+        reportsBox.setAlignment(Pos.CENTER);
+        
+        Button exportPdfBtn = new Button("Export PDF Report");
+        exportPdfBtn.setOnAction(e -> exportPdfReport());
+        
+        Button exportCsvBtn = new Button("Export CSV Data");
+        exportCsvBtn.setOnAction(e -> exportCSV());
+        
+        reportsBox.getChildren().addAll(
+            new Label("Generate Reports"),
+            new HBox(10, exportPdfBtn, exportCsvBtn)
+        );
+        
+        Tab reportsTab = new Tab("Reports", reportsBox);
+        
+        tabPane.getTabs().addAll(categoryTab, monthlyTab, trendTab, reportsTab);
         return tabPane;
     }
 
-    private void updatePieChart(PieChart chart) {
-        chart.getData().clear();
-        expenses.stream()
-            .collect(Collectors.groupingBy(Expense::getCategory,
-                     Collectors.summingDouble(Expense::getAmount)))
-            .forEach((category, total) ->
-                chart.getData().add(new PieChart.Data(category + " ($" + String.format("%.2f", total) + ")", total)));
+    private HBox createStatusBar() {
+        Label statusLabel = new Label("Ready");
+        Label countLabel = new Label("0 transactions");
+        
+        HBox statusBar = new HBox(15, statusLabel, countLabel);
+        statusBar.setPadding(new Insets(8));
+        statusBar.setStyle("-fx-background-color: #e9ecef;");
+        
+        // Update transaction count when data changes
+        filteredExpenses.addListener((ListChangeListener<Expense>) c -> {
+            countLabel.setText(String.format("%d transactions", filteredExpenses.size()));
+        });
+        
+        return statusBar;
     }
 
-    private void updateBarChart(BarChart<String, Number> chart) {
-        chart.getData().clear();
-        
-        XYChart.Series<String, Number> series = new XYChart.Series<>();
-        series.setName("Monthly Expenses");
-        
-        // Group expenses by month
-        expenses.stream()
-            .collect(Collectors.groupingBy(e -> e.getDate().getMonth().toString(), 
-                     Collectors.summingDouble(Expense::getAmount)))
-            .forEach((month, total) -> 
-                series.getData().add(new XYChart.Data<>(month, total)));
-        
-        chart.getData().add(series);
-    }
-
-    private void saveExpense(String description, String paymentMethod, String tags) {
-        LocalDate date = datePicker.getValue();
-        String category = categoryBox.getValue();
-        String amountText = amountField.getText().trim();
-
-        if (category == null || amountText.isEmpty()) {
-            showAlert("Error", "Please fill in all fields.");
-            return;
-        }
-
+    private void saveExpense() {
         try {
-            double amount = Double.parseDouble(amountText);
-            Expense newExpense = new Expense(date, category, amount, description, paymentMethod, tags);
-            expenses.add(newExpense);
+            LocalDate date = datePicker.getValue();
+            String category = categoryBox.getValue();
+            double amount = Double.parseDouble(amountField.getText());
+            String description = descriptionField.getText();
+            String paymentMethod = paymentBox.getValue();
+            String tags = tagsField.getText();
 
-            // Save to file (append)
-            try (FileWriter writer = new FileWriter(CSV_FILE, true)) {
-                writer.write(String.format("%s,%s,%.2f,%s,%s,%s\n", date, category, amount, description, paymentMethod, tags));
+            if (category == null || amount <= 0) {
+                showAlert("Error", "Please enter valid category and amount");
+                return;
             }
 
-            // Clear fields
-            categoryBox.getSelectionModel().clearSelection();
-            amountField.clear();
+            Expense newExpense = new Expense(
+                date, category, amount, 
+                description, paymentMethod, tags
+            );
 
-            // Update charts
+            expenses.add(newExpense);
+            saveToFile(newExpense);
+            clearForm();
+            updateDashboard();
             updateCharts();
-
-            // Animation
-            FadeTransition ft = new FadeTransition(Duration.millis(400), expenseTable);
-            ft.setFromValue(0.5);
-            ft.setToValue(1.0);
-            ft.play();
-
+            
+            // Animate table update
+            animateTableUpdate();
+            
         } catch (NumberFormatException e) {
-            showAlert("Error", "Please enter a valid amount.");
-        } catch (IOException e) {
-            showAlert("Error", "Failed to save entry to file.");
+            showAlert("Error", "Please enter a valid amount");
+        } catch (Exception e) {
+            showAlert("Error", "Failed to save transaction: " + e.getMessage());
         }
+    }
+
+    private void animateTableUpdate() {
+        FadeTransition ft = new FadeTransition(Duration.millis(300), expenseTable);
+        ft.setFromValue(0.5);
+        ft.setToValue(1.0);
+        ft.play();
+        
+        // Scroll to the new entry
+        expenseTable.scrollTo(expenses.size() - 1);
+    }
+
+    private void clearForm() {
+        datePicker.setValue(LocalDate.now());
+        categoryBox.getSelectionModel().clearSelection();
+        amountField.clear();
+        descriptionField.clear();
+        paymentBox.getSelectionModel().clearSelection();
+        tagsField.clear();
     }
 
     private void deleteSelected() {
         Expense selected = expenseTable.getSelectionModel().getSelectedItem();
         if (selected != null) {
             expenses.remove(selected);
-            exportCSV(); // Save all current expenses after deletion
+            updateDataFile();
+            updateDashboard();
             updateCharts();
         } else {
-            showAlert("Error", "Please select an expense to delete.");
+            showAlert("Error", "Please select a transaction to delete");
         }
     }
 
-    private void exportCSV() {
-        try (FileWriter writer = new FileWriter(CSV_FILE)) {
-            for (Expense e : expenses) {
-                writer.write(String.format("%s,%s,%.2f,%s,%s,%s\n",
-                    e.getDate(), e.getCategory(), e.getAmount(),
-                    e.getDescription(), e.getPaymentMethod(), e.getTags()));
-            }
-            showAlert("Export", "CSV exported successfully!");
-        } catch (IOException e) {
-            showAlert("Error", "Failed to export CSV.");
+    private void editSelected() {
+        Expense selected = expenseTable.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            // Populate form with selected expense
+            datePicker.setValue(selected.getDate());
+            categoryBox.setValue(selected.getCategory());
+            amountField.setText(String.valueOf(selected.getAmount()));
+            descriptionField.setText(selected.getDescription());
+            paymentBox.setValue(selected.getPaymentMethod());
+            tagsField.setText(selected.getTags());
+            
+            // Remove the selected expense (will be re-added if saved)
+            expenses.remove(selected);
+        } else {
+            showAlert("Error", "Please select a transaction to edit");
         }
+    }
+
+    private void applyFilters(String category, LocalDate fromDate, LocalDate toDate) {
+        filteredExpenses.setAll(expenses.stream()
+            .filter(e -> category.equals("All Categories") || e.getCategory().equals(category))
+            .filter(e -> fromDate == null || !e.getDate().isBefore(fromDate))
+            .filter(e -> toDate == null || !e.getDate().isAfter(toDate))
+            .collect(Collectors.toList()));
+        
+        updateDashboard();
+        updateCharts();
+    }
+
+    private void updateDashboard() {
+        double income = filteredExpenses.stream()
+            .filter(e -> e.getAmount() > 0)
+            .mapToDouble(Expense::getAmount)
+            .sum();
+        
+        double expenses = filteredExpenses.stream()
+            .filter(e -> e.getAmount() < 0)
+            .mapToDouble(Expense::getAmount)
+            .sum();
+        
+        double balance = income + expenses;
+        
+        balanceLabel.setText(String.format("$%.2f", balance));
+        incomeLabel.setText(String.format("$%.2f", income));
+        expenseLabel.setText(String.format("$%.2f", Math.abs(expenses)));
+    }
+
+    private void updateCharts() {
+        updatePieChart();
+        updateBarChart();
+        updateTrendChart();
+    }
+
+    private void updatePieChart() {
+        categoryChart.getData().clear();
+        
+        filteredExpenses.stream()
+            .filter(e -> e.getAmount() < 0) // Only expenses (negative amounts)
+            .collect(Collectors.groupingBy(
+                Expense::getCategory,
+                Collectors.summingDouble(e -> Math.abs(e.getAmount()))
+            ))
+            .forEach((category, total) -> {
+                PieChart.Data slice = new PieChart.Data(
+                    String.format("%s (%.2f)", category, total), 
+                    total
+                );
+                categoryChart.getData().add(slice);
+            });
+    }
+
+    private void updateBarChart() {
+        monthlyChart.getData().clear();
+        
+        XYChart.Series<String, Number> incomeSeries = new XYChart.Series<>();
+        incomeSeries.setName("Income");
+        
+        XYChart.Series<String, Number> expenseSeries = new XYChart.Series<>();
+        expenseSeries.setName("Expenses");
+        
+        // Group by month
+        Map<String, Double> monthlyIncome = filteredExpenses.stream()
+            .filter(e -> e.getAmount() > 0)
+            .collect(Collectors.groupingBy(
+                e -> e.getDate().getMonth().toString(),
+                Collectors.summingDouble(Expense::getAmount)
+             ) );
+
+
+
+        
+        Map<String, Double> monthlyExpenses = filteredExpenses.stream()
+            .filter(e -> e.getAmount() < 0)
+            .collect(Collectors.groupingBy(
+                e -> e.getDate().getMonth().toString(),
+                Collectors.summingDouble(e -> Math.abs(e.getAmount()))
+            ));
+        
+        // Add all months to maintain consistent x-axis
+        Set<String> allMonths = new TreeSet<>();
+        allMonths.addAll(monthlyIncome.keySet());
+        allMonths.addAll(monthlyExpenses.keySet());
+        
+        for (String month : allMonths) {
+            incomeSeries.getData().add(new XYChart.Data<>(
+                month, 
+                monthlyIncome.getOrDefault(month, 0.0)
+            ));
+            
+            expenseSeries.getData().add(new XYChart.Data<>(
+                month, 
+                monthlyExpenses.getOrDefault(month, 0.0)
+            ));
+        }
+        
+        monthlyChart.getData().addAll(incomeSeries, expenseSeries);
+    }
+
+    private void updateTrendChart() {
+        trendChart.getData().clear();
+        
+        XYChart.Series<String, Number> series = new XYChart.Series<>();
+        series.setName("Daily Spending");
+        
+        // Group by date and sum amounts
+        filteredExpenses.stream()
+            .collect(Collectors.groupingBy(
+                Expense::getDate,
+                TreeMap::new, // Maintain chronological order
+                Collectors.summingDouble(Expense::getAmount)
+            ))
+            .forEach((date, amount) -> {
+                series.getData().add(new XYChart.Data<>(
+                    date.format(DateTimeFormatter.ofPattern("MMM dd")),
+                    amount
+                ));
+            });
+        
+        trendChart.getData().add(series);
     }
 
     private void loadExpenses() {
@@ -300,21 +602,112 @@ public class Budgify extends Application {
                     String description = parts[3];
                     String paymentMethod = parts[4];
                     String tags = parts[5];
-                    expenses.add(new Expense(date, category, amount, description, paymentMethod, tags));
+                    
+                    expenses.add(new Expense(
+                        date, category, amount, 
+                        description, paymentMethod, tags
+                    ));
                 }
             }
+            filteredExpenses.setAll(expenses);
         } catch (IOException e) {
-            showAlert("Error", "Failed to load expenses from file.");
+            showAlert("Error", "Failed to load expenses: " + e.getMessage());
         }
     }
 
-    private void updateCharts() {
-        if (categoryTab.getContent() instanceof PieChart) {
-            updatePieChart((PieChart) categoryTab.getContent());
+    private void saveToFile(Expense expense) {
+        try (FileWriter writer = new FileWriter(CSV_FILE, true)) {
+            writer.write(String.format("%s,%s,%.2f,%s,%s,%s\n",
+                expense.getDate(),
+                expense.getCategory(),
+                expense.getAmount(),
+                expense.getDescription(),
+                expense.getPaymentMethod(),
+                expense.getTags()
+            ));
+        } catch (IOException e) {
+            showAlert("Error", "Failed to save transaction: " + e.getMessage());
         }
-        if (monthlyTab.getContent() instanceof BarChart) {
-            updateBarChart((BarChart<String, Number>) monthlyTab.getContent());
+    }
+
+    private void updateDataFile() {
+        try (FileWriter writer = new FileWriter(CSV_FILE)) {
+            for (Expense e : expenses) {
+                writer.write(String.format("%s,%s,%.2f,%s,%s,%s\n",
+                    e.getDate(),
+                    e.getCategory(),
+                    e.getAmount(),
+                    e.getDescription(),
+                    e.getPaymentMethod(),
+                    e.getTags()
+                ));
+            }
+        } catch (IOException e) {
+            showAlert("Error", "Failed to update data file: " + e.getMessage());
         }
+    }
+
+    private void exportCSV() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Export CSV");
+        fileChooser.getExtensionFilters().add(
+            new FileChooser.ExtensionFilter("CSV Files", "*.csv"));
+        File file = fileChooser.showSaveDialog(null);
+        
+        if (file != null) {
+            updateDataFile();
+            showAlert("Success", "Data exported to CSV successfully");
+        }
+    }
+
+    private void exportPdfReport() {
+        // In a real implementation, you would use a PDF library like iText
+        showAlert("Info", "PDF export would be implemented here");
+    }
+
+    private boolean showLoginDialog() {
+        Dialog<Pair<String, String>> dialog = new Dialog<>();
+        dialog.setTitle("Budgify Login");
+        dialog.setHeaderText("Enter your credentials");
+
+        // Set the button types
+        ButtonType loginButtonType = new ButtonType("Login", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(loginButtonType, ButtonType.CANCEL);
+
+        // Create the username and password fields
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
+
+        TextField username = new TextField();
+        username.setPromptText("Username");
+        PasswordField password = new PasswordField();
+        password.setPromptText("Password");
+
+        grid.add(new Label("Username:"), 0, 0);
+        grid.add(username, 1, 0);
+        grid.add(new Label("Password:"), 0, 1);
+        grid.add(password, 1, 1);
+
+        dialog.getDialogPane().setContent(grid);
+
+        // Convert the result to a username-password-pair
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == loginButtonType) {
+                return new Pair<>(username.getText(), password.getText());
+            }
+            return null;
+        });
+
+        Optional<Pair<String, String>> result = dialog.showAndWait();
+
+        if (result.isPresent()) {
+            // Simple validation - in real app you'd check against a database
+            return "admin".equals(result.get().getKey()) && 
+                   "budgify".equals(result.get().getValue());
+        }
+        return false;
     }
 
     private void showAlert(String title, String message) {
@@ -325,32 +718,7 @@ public class Budgify extends Application {
         alert.showAndWait();
     }
 
-    // Simple login dialog (for demo)
-    private boolean showLoginDialog() {
-        while (true) {
-            TextInputDialog dialog = new TextInputDialog();
-            dialog.setTitle("Login");
-            dialog.setHeaderText("Enter username (any) and password (budgify):");
-            dialog.setContentText("Username:");
-            String username = dialog.showAndWait().orElse("");
-            if (username.isEmpty()) return false;
-
-            TextInputDialog pwdDialog = new TextInputDialog();
-            pwdDialog.setTitle("Password");
-            pwdDialog.setHeaderText("Enter password:");
-            pwdDialog.setContentText("Password:");
-            String password = pwdDialog.showAndWait().orElse("");
-            if ("budgify".equals(password)) {
-                return true;
-            } else {
-                Alert alert = new Alert(Alert.AlertType.ERROR, "Incorrect password. Try again.");
-                alert.showAndWait();
-            }
-        }
-    }
-
     public static void main(String[] args) {
         launch(args);
     }
 }
-
