@@ -155,7 +155,8 @@ public class Budgify extends Application {
             logoutBtn.setOnAction(e -> {
                 currentUser = null;
                 // Clear the scene and show login again
-                primaryStage.getScene().setRoot(new StackPane()); // Hide UI
+                primaryStage.hide();
+                showAlert("Logged Out", "You have been logged out.");
                 start(primaryStage); // Restart login loop
             });
 
@@ -164,50 +165,49 @@ public class Budgify extends Application {
                 addTransactionBtn, categoriesBtn, monthlyBtn, trendBtn, reportsBtn, logoutBtn
             );
 
-// --- Main Content ---
-BorderPane root = new BorderPane();
-root.setLeft(navPanel);
+            // --- Main Content ---
+            BorderPane root = new BorderPane();
+            root.setLeft(navPanel);
 
-// Add Transaction Tab
-VBox formBox = new VBox(createInputForm());
-formBox.setAlignment(Pos.CENTER);
-formBox.setMaxWidth(400);
-formBox.setMinWidth(350);
-formBox.setPrefWidth(400);
+            // Add Transaction Tab
+            VBox formBox = new VBox(createInputForm());
+            formBox.setAlignment(Pos.CENTER);
+            formBox.setMaxWidth(400);
+            formBox.setMinWidth(350);
+            formBox.setPrefWidth(400);
 
-// Make the table fill available space and set a good min height
-expenseTable.setMinHeight(300);
-expenseTable.setPrefHeight(400);
-expenseTable.setMaxHeight(Double.MAX_VALUE); // allow to grow
+            // Make the table fill available space and set a good min height
+            expenseTable.setMinHeight(300);
+            expenseTable.setPrefHeight(400);
+            expenseTable.setMaxHeight(Double.MAX_VALUE); // allow to grow
 
-VBox tableBox = new VBox(15, createTransactionControls(), expenseTable);
-tableBox.setAlignment(Pos.TOP_CENTER);
-tableBox.setPadding(new Insets(20, 0, 0, 0));
-tableBox.setMinHeight(350);
-tableBox.setPrefHeight(500);
-tableBox.setMaxHeight(Double.MAX_VALUE);
-VBox.setVgrow(expenseTable, Priority.ALWAYS); // let table grow
+            VBox tableBox = new VBox(15, createTransactionControls(), expenseTable);
+            tableBox.setAlignment(Pos.TOP_CENTER);
+            tableBox.setPadding(new Insets(20, 0, 0, 0));
+            tableBox.setMinHeight(350);
+            tableBox.setPrefHeight(500);
+            tableBox.setMaxHeight(Double.MAX_VALUE);
+            VBox.setVgrow(expenseTable, Priority.ALWAYS); // let table grow
 
-// Center box: switch order so tableBox is above formBox
-VBox centerBox = new VBox(40, tableBox, formBox);
-centerBox.setAlignment(Pos.TOP_CENTER);
-centerBox.setPadding(new Insets(30, 0, 0, 0));
-centerBox.setMinWidth(600);
-centerBox.setPrefWidth(900);
-centerBox.setMaxWidth(Double.MAX_VALUE);
-VBox.setVgrow(tableBox, Priority.ALWAYS);
+            // Center box: switch order so tableBox is above formBox
+            VBox centerBox = new VBox(40, tableBox, formBox);
+            centerBox.setAlignment(Pos.TOP_CENTER);
+            centerBox.setPadding(new Insets(30, 0, 0, 0));
+            centerBox.setMinWidth(600);
+            centerBox.setPrefWidth(900);
+            centerBox.setMaxWidth(Double.MAX_VALUE);
+            VBox.setVgrow(tableBox, Priority.ALWAYS);
 
-// Wrap centerBox in ScrollPane to avoid overflow
-ScrollPane scrollPane = new ScrollPane(centerBox);
-scrollPane.setFitToWidth(true); // Make it resize horizontally
-scrollPane.setFitToHeight(true); // Resize vertically
+            // Wrap centerBox in ScrollPane to avoid overflow
+            ScrollPane scrollPane = new ScrollPane(centerBox);
+            scrollPane.setFitToWidth(true); // Make it resize horizontally
+            scrollPane.setFitToHeight(true); // Resize vertically
 
-StackPane addTransactionPane = new StackPane(scrollPane);
-addTransactionPane.setPadding(new Insets(30));
-addTransactionPane.setAlignment(Pos.TOP_CENTER);
+            StackPane addTransactionPane = new StackPane(scrollPane);
+            addTransactionPane.setPadding(new Insets(30));
+            addTransactionPane.setAlignment(Pos.TOP_CENTER);
 
-Tab addTab = new Tab("Add Transaction", addTransactionPane);
-
+            Tab addTab = new Tab("Add Transaction", addTransactionPane);
 
             // Chart Tabs
             TabPane chartTabs = createCharts();
@@ -216,7 +216,10 @@ Tab addTab = new Tab("Add Transaction", addTransactionPane);
             }
             mainTabs.getTabs().add(0, addTab);
 
-            root.setCenter(addTransactionPane);
+            // Show Add Transaction tab first on app open
+            mainTabs.getSelectionModel().select(addTab);
+
+            root.setCenter(mainTabs);
 
             // Dashboard cards at the top
             HBox dashboardCards = createDashboardCards();
